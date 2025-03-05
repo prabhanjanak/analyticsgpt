@@ -5,8 +5,6 @@ import google.generativeai as genai
 import speech_recognition as sr
 import plotly.express as px
 from elevenlabs import text_to_speech, save
-from pydub import AudioSegment
-import io
 
 # Load environment variables
 load_dotenv()
@@ -31,24 +29,15 @@ def get_gemini_response(question):
     response = chat.send_message(question, stream=True)
     return response
 
-# Function to Convert Audio to WAV Format
-def convert_audio_to_wav(audio_file):
-    audio = AudioSegment.from_file(audio_file)
-    wav_io = io.BytesIO()
-    audio.export(wav_io, format="wav")
-    wav_io.seek(0)
-    return wav_io
-
 # Function to Convert Uploaded Audio to Text
 def transcribe_audio(uploaded_file):
     recognizer = sr.Recognizer()
-    audio_file = convert_audio_to_wav(uploaded_file)
-    audio_data = sr.AudioFile(audio_file)
+    audio_file = sr.AudioFile(uploaded_file)
 
-    with audio_data as source:
-        audio = recognizer.record(source)
+    with audio_file as source:
+        audio_data = recognizer.record(source)
         try:
-            text = recognizer.recognize_google(audio)  # Uses Google Speech API for STT
+            text = recognizer.recognize_google(audio_data)  # Uses Google Speech API for STT
             return text
         except sr.UnknownValueError:
             return "Could not understand audio"
@@ -71,8 +60,8 @@ with col2:
 if 'chat_history' not in st.session_state:
     st.session_state['chat_history'] = []
 
-# Upload Audio File
-uploaded_file = st.file_uploader("Upload an audio file", type=["wav", "mp3", "ogg"])
+# Upload Audio File (WAV only)
+uploaded_file = st.file_uploader("Upload a WAV audio file", type=["wav"])
 
 if uploaded_file is not None:
     user_input = transcribe_audio(uploaded_file)

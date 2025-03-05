@@ -9,15 +9,15 @@ from elevenlabs import text_to_speech, save
 # Load environment variables
 load_dotenv()
 
-# Configure ElevenLabs API Key
+# Configure ElevenLabs API Key from environment variables
 elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
 if not elevenlabs_api_key:
-    raise ValueError("ElevenLabs API key not found. Please set ELEVENLABS_API_KEY in the .env file.")
+    raise ValueError("ElevenLabs API key not found. Please set ELEVENLABS_API_KEY in the environment variables.")
 
-# Configure Gemini API
+# Configure Gemini API from environment variables
 api_key = os.getenv("GOOGLE_API_KEY")
 if not api_key:
-    raise ValueError("API key not found. Please set the GOOGLE_API_KEY in the .env file.")
+    raise ValueError("API key not found. Please set the GOOGLE_API_KEY in the environment variables.")
 
 genai.configure(api_key=api_key)
 
@@ -41,37 +41,15 @@ with col1:
 with col2:
     st.title("🎙️ Voice-Controlled Chart Assistant (Gemini)")
 
-# Embed JavaScript to request microphone and speaker permissions
-st.components.v1.html("""
-    <script>
-        async function requestPermissions() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                alert('Microphone permission granted!');
-                stream.getTracks().forEach(track => track.stop());
-            } catch (err) {
-                alert('Microphone permission denied!');
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', (event) => {
-            requestPermissions();
-        });
-    </script>
-    """, height=0)
-
-# Function to Capture Audio and Convert to Text
-def record_audio():
+# Function to Convert Uploaded Audio to Text
+def transcribe_audio(uploaded_file):
     recognizer = sr.Recognizer()
+    audio_file = sr.AudioFile(uploaded_file)
 
-    with sr.Microphone() as source:
-        st.write("🎤 Listening...")
-        recognizer.adjust_for_ambient_noise(source)
-        audio = recognizer.listen(source)
-        st.write("🔄 Processing...")
-
+    with audio_file as source:
+        audio_data = recognizer.record(source)
         try:
-            text = recognizer.recognize_google(audio)  # Uses Google Speech API for STT
+            text = recognizer.recognize_google(audio_data)  # Uses Google Speech API for STT
             return text
         except sr.UnknownValueError:
             return "Could not understand audio"
@@ -82,9 +60,11 @@ def record_audio():
 if 'chat_history' not in st.session_state:
     st.session_state['chat_history'] = []
 
-# Start Listening and Process Audio
-if st.button("🎙️ Start Listening"):
-    user_input = record_audio()
+# Upload Audio File
+uploaded_file = st.file_uploader("Upload an audio file", type=["wav", "mp3", "ogg"])
+
+if uploaded_file is not None:
+    user_input = transcribe_audio(uploaded_file)
 
     if user_input:
         st.success(f"🗣️ You said: {user_input}")

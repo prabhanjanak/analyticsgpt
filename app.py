@@ -3,7 +3,6 @@ import streamlit as st
 import os
 import google.generativeai as genai
 import speech_recognition as sr
-import sounddevice as sd
 import plotly.express as px
 from elevenlabs import text_to_speech, save
 
@@ -30,18 +29,6 @@ def get_gemini_response(question):
     response = chat.send_message(question, stream=True)
     return response
 
-# Get List of Audio Input Devices (Microphones)
-def list_audio_devices():
-    devices = sd.query_devices()
-    input_devices = [dev['name'] for dev in devices if dev['max_input_channels'] > 0]
-    return input_devices
-
-# Get List of Audio Output Devices (Speakers)
-def list_output_devices():
-    devices = sd.query_devices()
-    output_devices = [dev['name'] for dev in devices if dev['max_output_channels'] > 0]
-    return output_devices
-
 # Streamlit UI Layout
 st.set_page_config(page_title="Voice-Controlled Chart Assistant", page_icon="🎙️", layout="wide")
 
@@ -54,29 +41,30 @@ with col1:
 with col2:
     st.title("🎙️ Voice-Controlled Chart Assistant (Gemini)")
 
-# Dropdown for input and output device selection
-input_devices = list_audio_devices()
-output_devices = list_output_devices()
+# Embed JavaScript to request microphone and speaker permissions
+st.components.v1.html("""
+    <script>
+        async function requestPermissions() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                alert('Microphone permission granted!');
+                stream.getTracks().forEach(track => track.stop());
+            } catch (err) {
+                alert('Microphone permission denied!');
+            }
+        }
 
-selected_input = st.selectbox("🎤 Select Microphone:", input_devices, index=0)
-selected_output = st.selectbox("🔊 Select Audio Output:", output_devices, index=0)
+        document.addEventListener('DOMContentLoaded', (event) => {
+            requestPermissions();
+        });
+    </script>
+    """, height=0)
 
 # Function to Capture Audio and Convert to Text
-def record_audio(device_name):
+def record_audio():
     recognizer = sr.Recognizer()
 
-    # Get Device Index
-    device_index = None
-    for idx, dev in enumerate(sd.query_devices()):
-        if dev["name"] == device_name:
-            device_index = idx
-            break
-
-    if device_index is None:
-        st.error("Selected microphone not found!")
-        return ""
-
-    with sr.Microphone(device_index=device_index) as source:
+    with sr.Microphone() as source:
         st.write("🎤 Listening...")
         recognizer.adjust_for_ambient_noise(source)
         audio = recognizer.listen(source)
@@ -96,7 +84,7 @@ if 'chat_history' not in st.session_state:
 
 # Start Listening and Process Audio
 if st.button("🎙️ Start Listening"):
-    user_input = record_audio(selected_input)
+    user_input = record_audio()
 
     if user_input:
         st.success(f"🗣️ You said: {user_input}")

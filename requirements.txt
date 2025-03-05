@@ -2,7 +2,5 @@ streamlit
 python-dotenv
 google-generativeai
 speechrecognition
-sounddevice
-pyaudio
 plotly
 elevenlabs
